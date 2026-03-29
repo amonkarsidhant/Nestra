@@ -14,9 +14,13 @@
   </head>
   <body>
     <main class="stage">
-      <p class="presence" id="presence-text">Nestra assistant online</p>
+      <p class="presence">
+        <span class="presence-dot" id="presence-dot" aria-hidden="true"></span>
+        <span id="presence-text">Nestra assistant online</span>
+      </p>
 
       <section class="agent-shell" aria-label="Live assistant">
+        <p class="agent-bubble" id="agent-bubble" aria-live="polite">Hello, I am here and listening.</p>
         <div class="human-agent idle" id="human-agent" aria-hidden="true">
           <div class="agent-head">
             <span class="agent-eye"></span>

@@ -36,36 +36,76 @@ body {
 .presence {
   margin: 0;
   justify-self: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   color: var(--muted);
   font-size: 0.88rem;
   text-transform: uppercase;
   letter-spacing: 0.6px;
 }
 
+.presence-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: #5f6f84;
+  box-shadow: 0 0 0 0 rgba(95, 111, 132, 0.5);
+}
+
+.presence-dot.connected {
+  background: var(--accent);
+  box-shadow: 0 0 0 0 rgba(66, 245, 176, 0.5);
+  animation: heartbeat 1600ms ease-out infinite;
+}
+
+.presence-dot.degraded {
+  background: var(--warn);
+  box-shadow: 0 0 10px rgba(251, 113, 133, 0.5);
+}
+
 .agent-shell {
   justify-self: center;
   display: grid;
   justify-items: center;
-  gap: 8px;
+  gap: 10px;
   width: min(520px, 92vw);
-  border: 1px solid rgba(125, 211, 252, 0.34);
-  border-radius: 18px;
-  padding: 14px 12px;
-  background: rgba(8, 14, 24, 0.62);
+  border: 1px solid rgba(125, 211, 252, 0.42);
+  border-radius: 22px;
+  padding: 18px 14px 16px;
+  background: linear-gradient(160deg, rgba(8, 14, 24, 0.82), rgba(12, 20, 34, 0.88));
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(66, 245, 176, 0.08) inset;
+}
+
+.agent-bubble {
+  margin: 0;
+  width: min(420px, 86vw);
+  min-height: 54px;
+  padding: 12px 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(66, 245, 176, 0.42);
+  background: linear-gradient(180deg, rgba(13, 30, 26, 0.94), rgba(11, 22, 20, 0.96));
+  color: #d5ffed;
+  font-weight: 700;
+  line-height: 1.35;
+  text-align: center;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28), 0 0 22px rgba(66, 245, 176, 0.2);
+  animation: bubbleRise 460ms ease both;
 }
 
 .human-agent {
-  width: 260px;
-  height: 270px;
+  width: 320px;
+  height: 320px;
   position: relative;
   display: grid;
   place-items: center;
+  animation: agentFloat 4s ease-in-out infinite;
 }
 
 .agent-aura {
   position: absolute;
-  width: 190px;
-  height: 190px;
+  width: 250px;
+  height: 250px;
   border-radius: 999px;
   background: radial-gradient(circle, rgba(66, 245, 176, 0.36), rgba(8, 14, 24, 0));
   filter: blur(8px);
@@ -74,8 +114,8 @@ body {
 
 .agent-head {
   position: relative;
-  width: 112px;
-  height: 112px;
+  width: 132px;
+  height: 132px;
   border-radius: 999px;
   border: 1px solid rgba(125, 211, 252, 0.5);
   background: linear-gradient(180deg, rgba(26, 40, 63, 0.98), rgba(9, 16, 28, 0.98));
@@ -88,27 +128,34 @@ body {
 }
 
 .agent-eye {
-  width: 12px;
-  height: 12px;
+  width: 15px;
+  height: 15px;
   border-radius: 999px;
   background: #9be7ff;
   box-shadow: 0 0 12px rgba(125, 211, 252, 0.9);
 }
 
+.human-agent.idle .agent-eye,
+.human-agent.listening .agent-eye,
+.human-agent.thinking .agent-eye,
+.human-agent.speaking .agent-eye {
+  animation: eyeBlink 5.4s infinite;
+}
+
 .agent-mouth {
   position: absolute;
-  bottom: 20px;
-  width: 24px;
-  height: 4px;
+  bottom: 24px;
+  width: 30px;
+  height: 5px;
   border-radius: 999px;
   background: #7dd3fc;
 }
 
 .agent-body {
   position: absolute;
-  top: 114px;
-  width: 142px;
-  height: 108px;
+  top: 136px;
+  width: 170px;
+  height: 130px;
   border-radius: 15px;
   border: 1px solid rgba(125, 211, 252, 0.34);
   background: linear-gradient(180deg, rgba(17, 28, 45, 0.95), rgba(9, 15, 25, 0.98));
@@ -134,6 +181,14 @@ body {
   animation: mouthTalk 340ms ease-in-out infinite;
 }
 
+.human-agent.speaking .agent-head {
+  animation: speakNod 420ms ease-in-out infinite;
+}
+
+.human-agent.thinking .agent-head {
+  animation: thinkTilt 1200ms ease-in-out infinite;
+}
+
 .human-agent.error .agent-eye,
 .human-agent.error .agent-mouth {
   background: var(--warn);
@@ -155,12 +210,77 @@ body {
 @keyframes mouthTalk {
   0%,
   100% {
-    width: 24px;
-    height: 4px;
+    width: 30px;
+    height: 5px;
   }
   50% {
-    width: 16px;
-    height: 10px;
+    width: 19px;
+    height: 12px;
+  }
+}
+
+@keyframes eyeBlink {
+  0%,
+  46%,
+  48%,
+  100% {
+    transform: scaleY(1);
+  }
+  47% {
+    transform: scaleY(0.14);
+  }
+}
+
+@keyframes speakNod {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(2px);
+  }
+}
+
+@keyframes thinkTilt {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  50% {
+    transform: rotate(-2.5deg);
+  }
+}
+
+@keyframes bubbleRise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes agentFloat {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-7px);
+  }
+}
+
+@keyframes heartbeat {
+  0% {
+    box-shadow: 0 0 0 0 rgba(66, 245, 176, 0.55);
+  }
+  70% {
+    box-shadow: 0 0 0 9px rgba(66, 245, 176, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(66, 245, 176, 0);
   }
 }
 
@@ -250,6 +370,54 @@ input {
 }
 
 @media (max-width: 760px) {
+  .stage {
+    gap: 14px;
+    padding-top: 14px;
+  }
+
+  .agent-shell {
+    padding: 14px 10px 12px;
+  }
+
+  .agent-bubble {
+    min-height: 46px;
+    font-size: 0.92rem;
+    padding: 10px 12px;
+  }
+
+  .human-agent {
+    width: 250px;
+    height: 250px;
+  }
+
+  .agent-aura {
+    width: 182px;
+    height: 182px;
+  }
+
+  .agent-head {
+    width: 104px;
+    height: 104px;
+    gap: 14px;
+  }
+
+  .agent-eye {
+    width: 12px;
+    height: 12px;
+  }
+
+  .agent-mouth {
+    bottom: 18px;
+    width: 24px;
+    height: 4px;
+  }
+
+  .agent-body {
+    top: 104px;
+    width: 132px;
+    height: 100px;
+  }
+
   .mode-toggle,
   .command-row,
   .voice-row {

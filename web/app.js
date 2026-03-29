@@ -1,8 +1,10 @@
 const API_BASE = "https://api.nestra.homelabdev.space";
 
 const presenceText = document.getElementById("presence-text");
+const presenceDot = document.getElementById("presence-dot");
 const humanAgentEl = document.getElementById("human-agent");
 const agentStateTextEl = document.getElementById("agent-state-text");
+const agentBubbleEl = document.getElementById("agent-bubble");
 const assistantLogEl = document.getElementById("assistant-log");
 
 const modeTextBtn = document.getElementById("mode-text");
@@ -19,6 +21,26 @@ let inputMode = "text";
 let speechEnabled = true;
 let recognition = null;
 let recognizing = false;
+
+function setAgentBubble(text) {
+  if (!agentBubbleEl || !text) {
+    return;
+  }
+  agentBubbleEl.textContent = text;
+}
+
+function setPresence(status, text) {
+  if (presenceText && text) {
+    presenceText.textContent = text;
+  }
+  if (!presenceDot) {
+    return;
+  }
+  presenceDot.classList.remove("connected", "degraded");
+  if (status === "connected" || status === "degraded") {
+    presenceDot.classList.add(status);
+  }
+}
 
 function setAgentState(state) {
   if (!humanAgentEl || !agentStateTextEl) {
@@ -48,9 +70,15 @@ function speak(text) {
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.rate = 1;
   utterance.pitch = 0.98;
-  utterance.onstart = () => setAgentState("speaking");
+  utterance.onstart = () => {
+    setAgentState("speaking");
+    setAgentBubble(text);
+  };
   utterance.onend = () => setAgentState("idle");
-  utterance.onerror = () => setAgentState("error");
+  utterance.onerror = () => {
+    setAgentState("error");
+    setAgentBubble("I had a voice output issue, but I am still here.");
+  };
 
   window.speechSynthesis.cancel();
   window.speechSynthesis.speak(utterance);
@@ -96,6 +124,7 @@ function initSpeechRecognition() {
   recognition.onstart = () => {
     recognizing = true;
     setAgentState("listening");
+    setAgentBubble("I am listening. Tell me what you need.");
     voiceBtn.textContent = "Listening...";
   };
 
@@ -109,6 +138,7 @@ function initSpeechRecognition() {
 
   recognition.onerror = () => {
     setAgentState("error");
+    setAgentBubble("I could not hear that clearly. Please try again.");
     addSpeechLine("agent", "I could not capture your voice. Please try again or switch to text.");
   };
 
@@ -142,6 +172,7 @@ async function runCommand(inputText) {
   }
 
   addSpeechLine("user", text);
+  setAgentBubble(`You said: ${text}`);
   setAgentState("thinking");
 
   try {
@@ -153,10 +184,12 @@ async function runCommand(inputText) {
 
     const response = result.reply_text || "I processed your request.";
     addSpeechLine("agent", response);
+    setAgentBubble(response);
     speak(response);
   } catch (err) {
     const failure = `I could not complete that request: ${err.message}`;
     addSpeechLine("agent", failure);
+    setAgentBubble(failure);
     speak(failure);
     setAgentState("error");
   }
@@ -202,19 +235,19 @@ ttsToggleBtn?.addEventListener("click", () => {
   setInputMode("text");
   initSpeechRecognition();
   setAgentState("idle");
+  setPresence("", "Connecting to home context...");
 
   try {
     const summary = await summarizeHomeStatus();
-    presenceText.textContent = "Live data connected";
-    addSpeechLine(
-      "agent",
-      `Hello, I am Nestra Assistant. ${summary} You can ask me to optimize EV charging, arm night security, preheat home, or give a status summary.`
-    );
+    setPresence("connected", "Live data connected");
+    const greeting = `Hello, I am Nestra Assistant. ${summary} You can ask me to optimize EV charging, arm night security, preheat home, or give a status summary.`;
+    setAgentBubble(greeting);
+    addSpeechLine("agent", greeting);
   } catch (_err) {
-    presenceText.textContent = "Simulated mode (live API unreachable)";
-    addSpeechLine(
-      "agent",
-      "Hello, I am Nestra Assistant. Live data is unavailable right now. You can still test natural-language commands in guided mode."
-    );
+    setPresence("degraded", "Simulated mode (live API unreachable)");
+    const fallbackGreeting =
+      "Hello, I am Nestra Assistant. Live data is unavailable right now. You can still test natural-language commands in guided mode.";
+    setAgentBubble(fallbackGreeting);
+    addSpeechLine("agent", fallbackGreeting);
   }
 })();
