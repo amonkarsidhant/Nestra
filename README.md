@@ -1,147 +1,139 @@
-# Nestra Home OS SaaS Bootstrap
+# Nestra
 
-This directory contains the first deployable Nestra SaaS stack.
+*Your home, understood.*
 
-## Services
-- `nestra-web` -> `https://nestra.homelabdev.space`
-- `nestra-api` -> `https://api.nestra.homelabdev.space`
-- `nestra-auth` -> `https://auth.nestra.homelabdev.space`
+Nestra is a voice‑first smart home assistant that brings genuinely natural, conversational control to your home. No awkward phrases. No cloud latency. Just talk, and Nestra responds with a presence that feels alive.
 
-## Quick start
-1. Copy `.env.example` to `.env` and set `AUTH_JWT_SECRET`.
-2. Ensure DNS A records for all three hosts point to Traefik VM IP.
-3. Start stack:
+---
+
+## Why Nestra?
+
+- **Truly conversational** – Speak naturally. No need to memorize commands.
+- **On-premises by default** – Your voice stays in your home. Optional cloud LLM for intelligence, not storage.
+- **One beautiful interface** – Full‑screen, immersive experience with a living, breathing avatar.
+- **Privacy guardrails** – Explicit consent for actions. Full audit trail. No background snooping.
+- **Enterprise-grade reliability** – Built with typed APIs, audit events, and policy‑gated device control.
+
+---
+
+## Experience
+
+### Voice that feels human
+Nestra listens continuously. Tap anywhere to start speaking. It understands your intent, confirms when needed, and executes with subtle animations that make the interaction feel real.
+
+### Memory that learns
+Tell Nestra what you prefer: *"Remember that I like the temperature at 22 degrees."* From then on, it factors your preference into responses and automations.
+
+### Action tags for precision
+Behind the scenes, Nestra uses structured **action tags** to execute multiple device changes in a single utterance, with full audit logging. Example:
+
+> "Turn on kitchen lights and set brightness to 80."
+
+Nestra parses and applies each change, then shows you exactly what happened.
+
+---
+
+## Tech highlights (for the curious)
+
+- **Backend**: FastAPI + SQLite + Pydantic. Clean domain model with tenant/household/actor boundaries.
+- **Frontend**: Pure HTML/CSS/JS with a procedural canvas avatar and audio‑reactive particle orb.
+- **Voice pipeline**: Web Speech API for browser STT; TTS via system voices; LLM routing via OpenAI‑compatible gateway.
+- **Security**: JWT auth, CORS lock‑down, CSP headers, audit events for every device action.
+- **Observability**: Structured logs, health endpoints, Prometheus‑ready metrics.
+- **Deployment**: Docker Compose + Traefik reverse proxy. One command to run anywhere.
+
+---
+
+## Quick start (homelab)
 
 ```bash
+# Clone and enter
+git clone https://github.com/amonkarsidhant/Nestra.git
+cd Nestra
+
+# Copy env and set a strong JWT secret
+cp .env.example .env
+# Edit .env: set AUTH_JWT_SECRET to a random 32‑byte value
+
+# Ensure DNS points nestra.homelabdev.space and api.nestra.homelabdev.space to your Traefik host
+
+# Bring up the stack
 docker compose -f nestra/docker-compose.yml --env-file nestra/.env up -d --build
 ```
 
-## Verification
-```bash
-curl -sS https://api.nestra.homelabdev.space/health
-curl -sS https://auth.nestra.homelabdev.space/health
-```
+Open https://nestra.homelabdev.space in Chrome. Tap to talk.
 
-## Alpha authentication (demo)
+---
 
-Nestra now uses an **alpha demo auth flow** for the first end-to-end customer demo.
+## Demo credentials (alpha)
 
-1. Sign in via `POST /v1/login` on `nestra-auth`
-2. Receive bearer token and actor context
-3. Use `Authorization: Bearer <token>` for protected API routes
+For the public demo instance:
 
-### Demo credentials
+- **Username**: `owner@nestra.demo`
+- **Password**: `nestra-alpha-owner`
 
-- Username: `owner@nestra.demo`
-- Password: `nestra-alpha-owner`
+Or use the default demo mode (no login required) with the seeded household:
+- Tenant: `default-tenant`
+- Household: `default-home`
+- Actor: `owner-1`
 
-You can override these in `nestra/.env`:
-- `DEMO_OWNER_USERNAME`
-- `DEMO_OWNER_PASSWORD`
+---
 
-### Login example
+## What it can do today
 
-```bash
-TOKEN=$(curl -sS https://auth.nestra.homelabdev.space/v1/login \
-  -H "Content-Type: application/json" \
-  -d '{"username":"owner@nestra.demo","password":"nestra-alpha-owner"}' \
-  | python3 -c 'import sys,json; print(json.load(sys.stdin)["access_token"])')
+- **Status summary** – *"What’s happening at home?"*
+- **Device control** – *"Turn on kitchen lights"*, *"Set living room temperature to 22"*
+- **EV charging plan** – *"Optimize EV charging for low tariff"* (with guardrails)
+- **Night security** – *"Good night, arm security"* (owner‑only)
+- **Preheat home** – *"I’m home, set temperature to 21"*
+- **Memory** – *"Remember that my preferred temperature is 22"* (stored per actor)
 
-curl -sS https://api.nestra.homelabdev.space/v1/household/context \
-  -H "Authorization: Bearer ${TOKEN}"
-```
+---
 
-### What this is (and is not)
+## Roadmap
 
-- This is **honest alpha auth** for demo credibility.
-- It protects the app shell and protected API routes used by the demo.
-- It is **not** full production OIDC/OAuth implementation.
-- `/.well-known/openid-configuration` remains partial and clearly marked for alpha.
+- **Confirmation flows** – Two‑step confirmation for sensitive actions
+- **Compact mode** – Float a mini‑avatar while you work
+- **Mobile app** – React Native wrapper for iOS/Android
+- **Partner APIs** – White‑label integrations for device manufacturers
+- **Cloud SaaS** – Managed offering with multi‑tenant isolation
 
-## Public demo mode (current)
+---
 
-For easier live demos, API routes can run without login wall in **public demo mode**.
+## Design pillars
 
-- Enabled by default: `DEMO_MODE_PUBLIC=true`
-- Demo context used when no bearer token is present:
-  - `DEMO_TENANT_ID=default-tenant`
-  - `DEMO_HOUSEHOLD_ID=default-home`
-  - `DEMO_ACTOR_ID=owner-1`
-  - `DEMO_ACTOR_ROLE=owner`
+| Pillar | What it means |
+|--------|----------------|
+| **Natural** | No rigid command grammar. Free‑form language. |
+| **Trustworthy** | Every action logged. Clear consent. Data stays home unless you choose otherwise. |
+| **Calm** | No clutter. No pop‑ups. Just a quiet, always‑ready presence. |
+| **Observable** | Built‑in audit trails and health metrics. |
 
-Set `DEMO_MODE_PUBLIC=false` to require bearer token auth on protected routes.
+---
 
-## Current limits
+## Screenshots
 
-- Demo storage is SQLite (`/data/nestra_demo.db`) mounted as a Docker volume
-- Auth is alpha-demo JWT with one seeded owner login
-- Audit events are persisted in SQLite and can be queried via `/v1/audit-events`
+| Immersive voice interface | Device inventory | Particle orb |
+|--------------------------|------------------|--------------|
+| ![Avatar stage](/nestra/web/assets/avatar-front.png) | ![Devices panel](#) | ![Orb effect](#) |
 
-## Demo-phase storage decision
+---
 
-Nestra uses SQLite for the first end-to-end demo because it is the simplest strong foundation that is:
-- persistent across container restarts,
-- easy to run in homelab Docker Compose,
-- explicit enough to model tenant, household, actor, device, device intent, and audit event domains.
+## License
 
-This is enough for alpha demo credibility. It is not the long-term multi-tenant production data layer.
+Free for personal, non‑commercial use. Commercial deployment requires a license. See [LICENSE](LICENSE) for details.
 
-## Auth upgrade path (post-demo)
+---
 
-Planned migration from alpha auth to standards-based token auth:
+## Built with
 
-1. Replace demo user table with proper identity provider model.
-2. Move to standards-compliant OIDC authorization code + refresh token flow.
-3. Publish stable JWKS and key rotation policy for token verification.
-4. Add session revocation + device/session management.
-5. Move from shared-secret HS256 to asymmetric key signing.
+- FastAPI
+- SQLite
+- Tailwind‑inspired custom CSS
+- Canvas 2D
+- Web Speech API
+- Docker
 
-## Seeded demo context
+---
 
-- Tenant: `default-tenant` (`Nestra Demo Tenant`)
-- Household: `default-home` (`Amonkar Household`)
-- Actors:
-  - `owner-1` (owner)
-  - `resident-1` (resident)
-  - `guest-1` (guest)
-
-## Demo API contracts
-
-- `GET /v1/household/context` -> tenant + household + actor context
-- `GET /v1/devices` -> typed device inventory
-- `GET /v1/audit-events` -> persistent audit history
-- `POST /v1/device-intents` -> create the EV charging intent action with premium feedback fields
-- `POST /v1/assistant/turn` -> text command turn with mapped intent execution and spoken-style reply
-
-### Assistant turn example
-
-```bash
-curl -sS https://api.nestra.homelabdev.space/v1/assistant/turn \
-  -H "Content-Type: application/json" \
-  -d '{"text":"good night and arm security"}'
-```
-
-## Guardrail rule for EV charging demo action
-
-For `intent_type=shift_ev_charging_low_tariff_window`, Nestra evaluates this guardrail before acceptance:
-
-1. Actor must be `owner` or `resident` (guests are blocked).
-2. Explicit confirmation is required (`confirm=true`).
-3. Requested time window must overlap the low-tariff period (`22:00-07:00`).
-
-Behavior:
-- Allowed -> writes `device_intents` + `audit_events` (outcome `allowed`).
-- Blocked/pending confirmation -> still writes `audit_events` (outcome `blocked`).
-
-Additional demo intents:
-- `arm_night_security_sweep` (owner-only + confirmation)
-- `preheat_home_arrival` (owner/resident + confirmation + safe temp range)
-
-## Agent workflow for future slices
-
-Nestra now includes a superpowers-inspired delivery loop for consistent execution:
-
-- Workflow guide: `nestra/WORKFLOW_SUPERPOWERS.md`
-- Plan command: `.opencode/commands/nestra-plan.md`
-- Build command: `.opencode/commands/nestra-feature.md`
-- Build with explicit execution checklist: `.opencode/commands/nestra-execute.md`
+**Nestra** – Your home, understood.
