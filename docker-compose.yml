@@ -1,0 +1,76 @@
+services:
+  nestra-web:
+    build:
+      context: ./web
+    container_name: nestra-web
+    restart: unless-stopped
+    networks:
+      - default
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.nestra-web.rule=Host(`nestra.homelabdev.space`)"
+      - "traefik.http.routers.nestra-web.entrypoints=websecure"
+      - "traefik.http.routers.nestra-web.tls=true"
+      - "traefik.http.routers.nestra-web.tls.certresolver=letsencrypt"
+      - "traefik.http.services.nestra-web.loadbalancer.server.port=80"
+
+  nestra-api:
+    build:
+      context: ./api
+    container_name: nestra-api
+    restart: unless-stopped
+    environment:
+      - APP_ENV=production
+      - CORS_ORIGIN=${CORS_ORIGIN:-https://nestra.homelabdev.space}
+      - DATABASE_PATH=${DATABASE_PATH:-/data/nestra_demo.db}
+      - AUTH_JWT_SECRET=${AUTH_JWT_SECRET:-change-me}
+      - DEMO_MODE_PUBLIC=${DEMO_MODE_PUBLIC:-true}
+      - DEMO_TENANT_ID=${DEMO_TENANT_ID:-default-tenant}
+      - DEMO_HOUSEHOLD_ID=${DEMO_HOUSEHOLD_ID:-default-home}
+      - DEMO_ACTOR_ID=${DEMO_ACTOR_ID:-owner-1}
+      - DEMO_ACTOR_ROLE=${DEMO_ACTOR_ROLE:-owner}
+    volumes:
+      - nestra_api_data:/data
+    networks:
+      - default
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.nestra-api.rule=Host(`api.nestra.homelabdev.space`)"
+      - "traefik.http.routers.nestra-api.entrypoints=websecure"
+      - "traefik.http.routers.nestra-api.tls=true"
+      - "traefik.http.routers.nestra-api.tls.certresolver=letsencrypt"
+      - "traefik.http.services.nestra-api.loadbalancer.server.port=8000"
+
+  nestra-auth:
+    build:
+      context: ./auth
+    container_name: nestra-auth
+    restart: unless-stopped
+    environment:
+      - AUTH_ISSUER=https://auth.nestra.homelabdev.space
+      - AUTH_JWT_SECRET=${AUTH_JWT_SECRET:-change-me}
+      - AUTH_COOKIE_DOMAIN=.nestra.homelabdev.space
+      - CORS_ORIGIN=${CORS_ORIGIN:-https://nestra.homelabdev.space}
+      - AUTH_DATABASE_PATH=${AUTH_DATABASE_PATH:-/data/nestra_auth.db}
+      - DEMO_OWNER_USERNAME=${DEMO_OWNER_USERNAME:-owner@nestra.demo}
+      - DEMO_OWNER_PASSWORD=${DEMO_OWNER_PASSWORD:-nestra-alpha-owner}
+    volumes:
+      - nestra_auth_data:/data
+    networks:
+      - default
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.nestra-auth.rule=Host(`auth.nestra.homelabdev.space`)"
+      - "traefik.http.routers.nestra-auth.entrypoints=websecure"
+      - "traefik.http.routers.nestra-auth.tls=true"
+      - "traefik.http.routers.nestra-auth.tls.certresolver=letsencrypt"
+      - "traefik.http.services.nestra-auth.loadbalancer.server.port=8000"
+
+networks:
+  default:
+    name: traefik_default
+    external: true
+
+volumes:
+  nestra_api_data:
+  nestra_auth_data:

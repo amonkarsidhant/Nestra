@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Nestra — Home Autopilot</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Syne:wght@500;700;800&family=Manrope:wght@500;600;700&family=IBM+Plex+Mono:wght@500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <div class="ambient ambient-a"></div>
+    <div class="ambient ambient-b"></div>
+
+    <header class="shell topbar">
+      <div class="brand-wrap">
+        <div class="brand-dot"></div>
+        <div>
+          <p class="brand">Nestra</p>
+          <p class="brand-sub">Home Autopilot Across Matter</p>
+        </div>
+      </div>
+      <div class="status-wrap">
+        <span class="status-chip" id="live-chip">live demo mode</span>
+        <span class="status-text" id="session-meta">Initializing household context...</span>
+      </div>
+    </header>
+
+    <main class="shell">
+      <section class="hero panel">
+        <p class="kicker">For households, installers, and home-tech partners</p>
+        <h1>One trusted operating layer for your entire Matter home, not just one device.</h1>
+        <p class="lead">
+          Nestra coordinates EV charging, climate comfort, and night security routines with
+          explicit guardrails and auditable execution.
+        </p>
+        <p class="lead lead-strong">
+          Built for operators who manage one home today and many homes tomorrow.
+        </p>
+        <div class="value-strip" aria-label="Nestra value pillars">
+          <span>Policy-first automation</span>
+          <span>Cross-vendor orchestration</span>
+          <span>Auditable household actions</span>
+        </div>
+        <div class="hero-actions">
+          <button class="primary" id="run-sim-btn" type="button">Run 30-second value simulation</button>
+          <button class="ghost" id="intent-btn" type="button">Apply EV low-tariff plan</button>
+        </div>
+      </section>
+
+      <section class="kpis">
+        <article class="panel kpi">
+          <p>Projected Monthly Savings</p>
+          <h2 id="kpi-savings">EUR --</h2>
+          <span>based on current nightly profile</span>
+        </article>
+        <article class="panel kpi">
+          <p>Household Context</p>
+          <h2 id="kpi-household">-</h2>
+          <span id="kpi-actor">-</span>
+        </article>
+        <article class="panel kpi">
+          <p>Policy Pass Rate</p>
+          <h2 id="kpi-confidence">--%</h2>
+          <span>actions passing guardrails (live)</span>
+        </article>
+      </section>
+
+      <section class="proof-grid">
+        <article class="panel proof-card">
+          <div class="panel-head">
+            <h3>Why Not Just Home Assistant?</h3>
+            <span class="tag">Buyer test</span>
+          </div>
+          <p class="subtle">
+            Home Assistant is excellent for local DIY orchestration. Nestra wins only when policy,
+            accountability, and repeatable operations matter.
+          </p>
+          <div class="compare-table" role="table" aria-label="Nestra versus Home Assistant">
+            <div class="compare-row" role="row">
+              <span role="cell">Guardrail-enforced actions</span>
+              <strong role="cell">Nestra</strong>
+            </div>
+            <div class="compare-row" role="row">
+              <span role="cell">Household action audit trail</span>
+              <strong role="cell">Nestra</strong>
+            </div>
+            <div class="compare-row" role="row">
+              <span role="cell">DIY automation flexibility</span>
+              <strong role="cell">Home Assistant</strong>
+            </div>
+            <div class="compare-row" role="row">
+              <span role="cell">Installer + partner operating model</span>
+              <strong role="cell">Nestra (roadmap active)</strong>
+            </div>
+          </div>
+        </article>
+
+        <article class="panel proof-card honest-card">
+          <div class="panel-head">
+            <h3>Honest Customer Verdict</h3>
+            <span class="tag">No hype</span>
+          </div>
+          <p id="buyer-verdict" class="subtle">
+            Running buyer check against live demo signals...
+          </p>
+          <button class="ghost" id="buyer-check-btn" type="button">Run skeptical buyer check</button>
+        </article>
+      </section>
+
+      <section class="integration-grid">
+        <article class="panel integration-card">
+          <h3>Matter Fabric</h3>
+          <p>Connected device classes discovered through Matter bridge.</p>
+          <span class="pill" id="pill-matter">demo simulation</span>
+        </article>
+        <article class="panel integration-card">
+          <h3>Home Assistant</h3>
+          <p>Cross-vendor entity sync and routine orchestration via HA bridge.</p>
+          <span class="pill" id="pill-ha">demo simulation</span>
+        </article>
+        <article class="panel integration-card">
+          <h3>Energy Signal Layer</h3>
+          <p>Tariff and time-window intelligence feeding schedule suggestions.</p>
+          <span class="pill" id="pill-energy">demo simulation</span>
+        </article>
+      </section>
+
+      <section class="workspace">
+        <article class="panel plan-panel">
+          <div class="panel-head">
+            <h3>Tonight's Optimization Plan</h3>
+            <span class="tag">Revenue story</span>
+          </div>
+          <p class="subtle">Recommended low-tariff window with confirmation and policy checks.</p>
+          <div class="time-grid">
+            <label>
+              Charge start
+              <input id="intent-start" type="time" value="23:00" step="60" />
+            </label>
+            <label>
+              Charge end
+              <input id="intent-end" type="time" value="05:00" step="60" />
+            </label>
+          </div>
+          <label class="checkline">
+            <input id="intent-confirm" type="checkbox" checked />
+            Confirm this schedule now
+          </label>
+          <div id="intent-result" class="result mono">Awaiting action...</div>
+        </article>
+
+        <article class="panel scenario-panel">
+          <div class="panel-head">
+            <h3>Real-life Scenarios</h3>
+            <span class="tag">Sellable value</span>
+          </div>
+          <p class="subtle">Run one-click household outcomes powered by policy checks.</p>
+          <div class="scenario-actions">
+            <button type="button" id="scenario-security-btn">Arm Night Security Sweep</button>
+            <button type="button" id="scenario-comfort-btn">Preheat Home for Arrival</button>
+          </div>
+          <div id="scenario-result" class="result mono">Choose a scenario to execute.</div>
+        </article>
+
+        <article class="panel tariff-panel">
+          <div class="panel-head">
+            <h3>Tariff Radar</h3>
+            <span class="tag">Explainability</span>
+          </div>
+          <p class="subtle">Simple visual of high and low energy price zones.</p>
+          <div class="tariff-track" id="tariff-track"></div>
+          <div class="legend">
+            <span><i class="dot low"></i>low tariff</span>
+            <span><i class="dot high"></i>high tariff</span>
+          </div>
+        </article>
+
+        <article class="panel devices-panel">
+          <div class="panel-head">
+            <h3>Connected Devices</h3>
+            <span class="tag">Inventory</span>
+          </div>
+          <div id="device-list" class="list"></div>
+        </article>
+
+        <article class="panel audit-panel">
+          <div class="panel-head">
+            <h3>Proof of Execution</h3>
+            <span class="tag">Audit</span>
+          </div>
+          <div id="audit-list" class="list"></div>
+        </article>
+      </section>
+    </main>
+
+    <script src="/app.js"></script>
+  </body>
+</html>
