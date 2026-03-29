@@ -111,6 +111,15 @@ Planned migration from alpha auth to standards-based token auth:
 - `GET /v1/devices` -> typed device inventory
 - `GET /v1/audit-events` -> persistent audit history
 - `POST /v1/device-intents` -> create the EV charging intent action with premium feedback fields
+- `POST /v1/assistant/turn` -> text command turn with mapped intent execution and spoken-style reply
+
+### Assistant turn example
+
+```bash
+curl -sS https://api.nestra.homelabdev.space/v1/assistant/turn \
+  -H "Content-Type: application/json" \
+  -d '{"text":"good night and arm security"}'
+```
 
 ## Guardrail rule for EV charging demo action
 

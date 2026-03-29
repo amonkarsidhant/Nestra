@@ -134,3 +134,22 @@ class AuditHistoryResponse(BaseModel):
     tenant_id: str
     household_id: str
     items: list[AuditEvent]
+
+
+class AssistantTurnRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=500)
+
+
+class AssistantAction(BaseModel):
+    type: Literal["device_intent", "status_summary", "clarification", "unsupported"]
+    intent_type: str | None = None
+    status: Literal["accepted", "blocked", "pending_confirmation", "completed", "none"]
+    audit_event_id: str | None = None
+
+
+class AssistantTurnResponse(BaseModel):
+    input_text: str
+    reply_text: str
+    action: AssistantAction
+    next_step: str | None = None
+    guardrail: str | None = None

@@ -135,33 +135,6 @@ async function summarizeHomeStatus() {
   return `${ctx.household.name}: ${online}/${deviceItems.length} devices online, ${blocked} blocked unsafe actions in recent logs.`;
 }
 
-async function submitIntent() {
-  const payload = {
-    intent_type: "shift_ev_charging_low_tariff_window",
-    payload: {
-      window_start: "23:00",
-      window_end: "05:00",
-    },
-    confirm: true,
-  };
-
-  const res = await apiFetch("/v1/device-intents", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  return res.json();
-}
-
-async function submitScenario(intentType, payload) {
-  const res = await apiFetch("/v1/device-intents", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ intent_type: intentType, payload, confirm: true }),
-  });
-  return res.json();
-}
-
 async function runCommand(inputText) {
   const text = (inputText || "").trim();
   if (!text) {
@@ -171,51 +144,16 @@ async function runCommand(inputText) {
   addSpeechLine("user", text);
   setAgentState("thinking");
 
-  const command = text.toLowerCase();
-
   try {
-    if (command.includes("good night") || command.includes("security") || command.includes("arm")) {
-      await submitScenario("arm_night_security_sweep", {
-        arm_time: "22:30",
-        zones: ["entryway", "garage", "living-room"],
-      });
-      const response = "Night security sweep is armed. Policy checks passed and I logged everything.";
-      addSpeechLine("agent", response);
-      speak(response);
-      return;
-    }
+    const result = await apiFetch("/v1/assistant/turn", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text }),
+    }).then((r) => r.json());
 
-    if (command.includes("preheat") || command.includes("i am home") || command.includes("i'm home")) {
-      await submitScenario("preheat_home_arrival", {
-        arrival_time: "18:00",
-        target_temperature_c: 21.5,
-      });
-      const response = "Comfort preheat is scheduled. I applied guardrails and recorded the action.";
-      addSpeechLine("agent", response);
-      speak(response);
-      return;
-    }
-
-    if (command.includes("ev") || command.includes("charge") || command.includes("tariff")) {
-      await submitIntent();
-      const response = "EV low-tariff plan is applied. I validated the window and created an audit event.";
-      addSpeechLine("agent", response);
-      speak(response);
-      return;
-    }
-
-    if (command.includes("status") || command.includes("summary") || command.includes("home")) {
-      const response = await summarizeHomeStatus();
-      addSpeechLine("agent", response);
-      speak(response);
-      return;
-    }
-
-    const fallback =
-      "In this MVP, I can run security sweep, preheat home, optimize EV charging, or read home status. Please try one of those.";
-    addSpeechLine("agent", fallback);
-    speak(fallback);
-    setAgentState("idle");
+    const response = result.reply_text || "I processed your request.";
+    addSpeechLine("agent", response);
+    speak(response);
   } catch (err) {
     const failure = `I could not complete that request: ${err.message}`;
     addSpeechLine("agent", failure);

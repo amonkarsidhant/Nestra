@@ -8,6 +8,9 @@ from app.core.auth import get_demo_or_authenticated_context
 from app.core.context import RequestContext
 from app.domain.audit import emit_audit_event
 from app.domain.models import (
+    AssistantAction,
+    AssistantTurnRequest,
+    AssistantTurnResponse,
     AuditHistoryResponse,
     DeviceIntentCreateRequest,
     DeviceIntentCreateResponse,
@@ -21,83 +24,9 @@ from app.domain.repository import domain_repository
 router = APIRouter(tags=["nestra-demo"])
 
 
-@router.get("/household/context", response_model=HouseholdContextResponse)
-def get_household_context(
-    context: Annotated[RequestContext, Depends(get_demo_or_authenticated_context)],
-) -> HouseholdContextResponse:
-    tenant, household, actor = domain_repository.get_household_context(context)
-    return HouseholdContextResponse(tenant=tenant, household=household, actor=actor)
-
-
-@router.get("/devices", response_model=DeviceListResponse)
-def list_devices(
-    context: Annotated[RequestContext, Depends(get_demo_or_authenticated_context)],
-) -> DeviceListResponse:
-    items = domain_repository.list_devices(context)
-    return DeviceListResponse(
-        tenant_id=context.tenant_id,
-        household_id=context.household_id,
-        items=items,
-    )
-
-
-@router.get("/audit-events", response_model=AuditHistoryResponse)
-def list_audit_events(
-    context: Annotated[RequestContext, Depends(get_demo_or_authenticated_context)],
-    limit: Annotated[int, Query(ge=1, le=100)] = 25,
-) -> AuditHistoryResponse:
-    items = domain_repository.list_audit_events(context, limit)
-    return AuditHistoryResponse(
-        tenant_id=context.tenant_id,
-        household_id=context.household_id,
-        items=items,
-    )
-
-
-@router.patch("/devices/{device_id}/state", response_model=DeviceUpdateResponse)
-def update_device_state(
-    device_id: str,
-    payload: DeviceStateUpdateRequest,
-    context: Annotated[RequestContext, Depends(get_demo_or_authenticated_context)],
-) -> DeviceUpdateResponse:
-    device = domain_repository.get_device(context, device_id)
-    requested = payload.state.model_dump(exclude_none=True)
-
-    if context.actor_role == "guest" and ("lock_state" in requested or device.type == "lock"):
-        blocked = emit_audit_event(
-            context=context,
-            action="device.state.update",
-            resource_type="device",
-            resource_id=device_id,
-            outcome="blocked",
-            reason="guest-cannot-control-locks",
-            metadata={"requested": requested},
-        )
-        raise HTTPException(
-            status_code=403,
-            detail={
-                "code": "forbidden",
-                "message": "Guest actors cannot modify lock state.",
-                "audit_event_id": blocked.event_id,
-            },
-        )
-
-    updated = domain_repository.update_state(context, device_id, payload.state)
-    event = emit_audit_event(
-        context=context,
-        action="device.state.update",
-        resource_type="device",
-        resource_id=device_id,
-        outcome="allowed",
-        metadata={"requested": requested},
-    )
-    return DeviceUpdateResponse(device=updated, audit_event_id=event.event_id)
-
-
-@router.post("/device-intents", response_model=DeviceIntentCreateResponse)
-def create_device_intent(
+def _process_device_intent(
     payload: DeviceIntentCreateRequest,
-    context: Annotated[RequestContext, Depends(get_demo_or_authenticated_context)],
+    context: RequestContext,
 ) -> DeviceIntentCreateResponse:
     _, _, actor = domain_repository.get_household_context(context)
 
@@ -243,4 +172,173 @@ def create_device_intent(
         message=message,
         next_step=next_step,
         guardrail=guardrail_rule,
+    )
+
+
+def _map_text_to_intent(text: str) -> DeviceIntentCreateRequest | None:
+    normalized = text.lower().strip()
+    if not normalized:
+        return None
+
+    if any(keyword in normalized for keyword in ["good night", "security", "arm"]):
+        return DeviceIntentCreateRequest(
+            intent_type="arm_night_security_sweep",
+            payload={"arm_time": "22:30", "zones": ["entryway", "garage", "living-room"]},
+            confirm=True,
+        )
+
+    if any(keyword in normalized for keyword in ["preheat", "i am home", "i'm home", "arriving"]):
+        return DeviceIntentCreateRequest(
+            intent_type="preheat_home_arrival",
+            payload={"arrival_time": "18:00", "target_temperature_c": 21.5},
+            confirm=True,
+        )
+
+    if any(keyword in normalized for keyword in ["ev", "charge", "tariff"]):
+        return DeviceIntentCreateRequest(
+            intent_type="shift_ev_charging_low_tariff_window",
+            payload={"window_start": "23:00", "window_end": "05:00"},
+            confirm=True,
+        )
+
+    return None
+
+
+@router.get("/household/context", response_model=HouseholdContextResponse)
+def get_household_context(
+    context: Annotated[RequestContext, Depends(get_demo_or_authenticated_context)],
+) -> HouseholdContextResponse:
+    tenant, household, actor = domain_repository.get_household_context(context)
+    return HouseholdContextResponse(tenant=tenant, household=household, actor=actor)
+
+
+@router.get("/devices", response_model=DeviceListResponse)
+def list_devices(
+    context: Annotated[RequestContext, Depends(get_demo_or_authenticated_context)],
+) -> DeviceListResponse:
+    items = domain_repository.list_devices(context)
+    return DeviceListResponse(
+        tenant_id=context.tenant_id,
+        household_id=context.household_id,
+        items=items,
+    )
+
+
+@router.get("/audit-events", response_model=AuditHistoryResponse)
+def list_audit_events(
+    context: Annotated[RequestContext, Depends(get_demo_or_authenticated_context)],
+    limit: Annotated[int, Query(ge=1, le=100)] = 25,
+) -> AuditHistoryResponse:
+    items = domain_repository.list_audit_events(context, limit)
+    return AuditHistoryResponse(
+        tenant_id=context.tenant_id,
+        household_id=context.household_id,
+        items=items,
+    )
+
+
+@router.patch("/devices/{device_id}/state", response_model=DeviceUpdateResponse)
+def update_device_state(
+    device_id: str,
+    payload: DeviceStateUpdateRequest,
+    context: Annotated[RequestContext, Depends(get_demo_or_authenticated_context)],
+) -> DeviceUpdateResponse:
+    device = domain_repository.get_device(context, device_id)
+    requested = payload.state.model_dump(exclude_none=True)
+
+    if context.actor_role == "guest" and ("lock_state" in requested or device.type == "lock"):
+        blocked = emit_audit_event(
+            context=context,
+            action="device.state.update",
+            resource_type="device",
+            resource_id=device_id,
+            outcome="blocked",
+            reason="guest-cannot-control-locks",
+            metadata={"requested": requested},
+        )
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "code": "forbidden",
+                "message": "Guest actors cannot modify lock state.",
+                "audit_event_id": blocked.event_id,
+            },
+        )
+
+    updated = domain_repository.update_state(context, device_id, payload.state)
+    event = emit_audit_event(
+        context=context,
+        action="device.state.update",
+        resource_type="device",
+        resource_id=device_id,
+        outcome="allowed",
+        metadata={"requested": requested},
+    )
+    return DeviceUpdateResponse(device=updated, audit_event_id=event.event_id)
+
+
+@router.post("/device-intents", response_model=DeviceIntentCreateResponse)
+def create_device_intent(
+    payload: DeviceIntentCreateRequest,
+    context: Annotated[RequestContext, Depends(get_demo_or_authenticated_context)],
+) -> DeviceIntentCreateResponse:
+    return _process_device_intent(payload, context)
+
+
+@router.post("/assistant/turn", response_model=AssistantTurnResponse)
+def assistant_turn(
+    payload: AssistantTurnRequest,
+    context: Annotated[RequestContext, Depends(get_demo_or_authenticated_context)],
+) -> AssistantTurnResponse:
+    text = payload.text.strip()
+    normalized = text.lower()
+
+    if any(keyword in normalized for keyword in ["status", "summary", "home status", "what's happening"]):
+        devices = domain_repository.list_devices(context)
+        audits = domain_repository.list_audit_events(context, limit=25)
+        online = len([item for item in devices if item.online])
+        blocked = len([item for item in audits if item.outcome != "allowed"])
+        reply = (
+            f"Home status: {online} of {len(devices)} devices online, "
+            f"{blocked} blocked unsafe actions in recent logs."
+        )
+        return AssistantTurnResponse(
+            input_text=text,
+            reply_text=reply,
+            action=AssistantAction(type="status_summary", status="completed"),
+        )
+
+    mapped = _map_text_to_intent(text)
+    if not mapped:
+        return AssistantTurnResponse(
+            input_text=text,
+            reply_text=(
+                "In this MVP I can optimize EV charging, arm night security sweep, "
+                "preheat home for arrival, or provide home status summary."
+            ),
+            action=AssistantAction(type="unsupported", status="none"),
+            next_step="Try: 'good night', 'preheat home', 'optimize EV charging', or 'home status'.",
+        )
+
+    intent_result = _process_device_intent(mapped, context)
+    action_type = "device_intent"
+    reply = intent_result.message
+    if intent_result.status == "accepted":
+        reply = f"Done. {intent_result.message}"
+    elif intent_result.status == "pending_confirmation":
+        reply = f"I need your confirmation. {intent_result.message}"
+    elif intent_result.status == "blocked":
+        reply = f"I blocked that request. {intent_result.message}"
+
+    return AssistantTurnResponse(
+        input_text=text,
+        reply_text=reply,
+        action=AssistantAction(
+            type=action_type,
+            intent_type=intent_result.intent.intent_type,
+            status=intent_result.status,
+            audit_event_id=intent_result.audit_event_id,
+        ),
+        next_step=intent_result.next_step,
+        guardrail=intent_result.guardrail,
     )
