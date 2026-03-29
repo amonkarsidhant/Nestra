@@ -22,6 +22,7 @@ from app.domain.models import (
     AssistantTurnResponse,
     AuditEvent,
     AuditHistoryResponse,
+    DeviceIntent,
     DeviceIntentCreateRequest,
     DeviceIntentCreateResponse,
     DeviceListResponse,
@@ -785,21 +786,21 @@ def _map_text_to_intent(text: str) -> DeviceIntentCreateRequest | None:
         return DeviceIntentCreateRequest(
             intent_type="arm_night_security_sweep",
             payload={"arm_time": "22:30", "zones": ["entryway", "garage", "living-room"]},
-            confirm=True,
+            confirm=False,  # requires confirmation
         )
 
     if any(keyword in normalized for keyword in ["preheat", "i am home", "i'm home", "arriving"]):
         return DeviceIntentCreateRequest(
             intent_type="preheat_home_arrival",
             payload={"arrival_time": "18:00", "target_temperature_c": 21.5},
-            confirm=True,
+            confirm=False,  # requires confirmation
         )
 
     if any(keyword in normalized for keyword in ["ev", "charge", "tariff"]):
         return DeviceIntentCreateRequest(
             intent_type="shift_ev_charging_low_tariff_window",
             payload={"window_start": "23:00", "window_end": "05:00"},
-            confirm=True,
+            confirm=False,  # requires confirmation
         )
 
     return None
