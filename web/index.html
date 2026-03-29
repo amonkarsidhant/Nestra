@@ -25,21 +25,21 @@
         </div>
       </div>
       <div class="status-wrap">
-        <span class="status-chip" id="live-chip">live demo mode</span>
+        <span class="status-chip" id="live-chip">checking live data</span>
         <span class="status-text" id="session-meta">Initializing household context...</span>
       </div>
     </header>
 
     <main class="shell">
       <section class="hero panel">
-        <p class="kicker">For households, installers, and home-tech partners</p>
-        <h1>One trusted operating layer for your entire Matter home, not just one device.</h1>
+        <p class="kicker">For installers and operators managing modern connected homes</p>
+        <h1>Keep Home Assistant. Add policy control people can actually trust.</h1>
         <p class="lead">
-          Nestra coordinates EV charging, climate comfort, and night security routines with
-          explicit guardrails and auditable execution.
+          Nestra coordinates EV charging, climate comfort, and security routines with
+          guardrail-first execution and auditable outcomes.
         </p>
         <p class="lead lead-strong">
-          Built for operators who manage one home today and many homes tomorrow.
+          Start with one household today. Scale repeatable operations to many homes tomorrow.
         </p>
         <div class="value-strip" aria-label="Nestra value pillars">
           <span>Policy-first automation</span>
@@ -47,16 +47,20 @@
           <span>Auditable household actions</span>
         </div>
         <div class="hero-actions">
-          <button class="primary" id="run-sim-btn" type="button">Run 30-second value simulation</button>
-          <button class="ghost" id="intent-btn" type="button">Apply EV low-tariff plan</button>
+          <button class="primary" id="run-sim-btn" type="button">See 30-second live walkthrough</button>
+          <button class="ghost" id="intent-btn" type="button">Test EV low-tariff plan</button>
+          <button class="ghost" id="pilot-btn" type="button">Book 20-minute pilot review</button>
         </div>
+        <p class="trust-strip">
+          Policy checks before execution • Full audit trail • Home Assistant compatible
+        </p>
       </section>
 
       <section class="kpis">
         <article class="panel kpi">
-          <p>Projected Monthly Savings</p>
+          <p>Estimated Monthly Savings</p>
           <h2 id="kpi-savings">EUR --</h2>
-          <span>based on current nightly profile</span>
+          <span>assumption-based from selected tariff window</span>
         </article>
         <article class="panel kpi">
           <p>Household Context</p>
@@ -70,15 +74,34 @@
         </article>
       </section>
 
+      <section class="live-proof-grid">
+        <article class="panel live-proof-card">
+          <p>Actions Logged (7 days)</p>
+          <h3 id="proof-actions">--</h3>
+        </article>
+        <article class="panel live-proof-card">
+          <p>Blocked Unsafe Actions</p>
+          <h3 id="proof-blocked">--</h3>
+        </article>
+        <article class="panel live-proof-card">
+          <p>Devices Online</p>
+          <h3 id="proof-online">--</h3>
+        </article>
+        <article class="panel live-proof-card">
+          <p>Last Sync</p>
+          <h3 id="proof-sync">--</h3>
+        </article>
+      </section>
+
       <section class="proof-grid">
         <article class="panel proof-card">
           <div class="panel-head">
-            <h3>Why Not Just Home Assistant?</h3>
+            <h3>Where Nestra Fits vs Home Assistant</h3>
             <span class="tag">Buyer test</span>
           </div>
           <p class="subtle">
-            Home Assistant is excellent for local DIY orchestration. Nestra wins only when policy,
-            accountability, and repeatable operations matter.
+            Home Assistant wins on DIY flexibility. Nestra wins when policy governance,
+            accountable actions, and repeatable multi-home operations become non-negotiable.
           </p>
           <div class="compare-table" role="table" aria-label="Nestra versus Home Assistant">
             <div class="compare-row" role="row">
@@ -103,10 +126,16 @@
         <article class="panel proof-card honest-card">
           <div class="panel-head">
             <h3>Honest Customer Verdict</h3>
-            <span class="tag">No hype</span>
+            <span class="tag">What buyers care about</span>
           </div>
           <p id="buyer-verdict" class="subtle">
-            Running buyer check against live demo signals...
+            If you want maximum DIY freedom, Home Assistant is still a better fit. If you need
+            policy-checked actions with accountable audit trails, Nestra is the stronger operating
+            layer.
+          </p>
+          <p class="subtle">
+            Current signal: <strong id="buyer-pass-rate">--%</strong> guardrail pass rate,
+            <strong id="buyer-blocked-count">--</strong> blocked actions proving fail-safe behavior.
           </p>
           <button class="ghost" id="buyer-check-btn" type="button">Run skeptical buyer check</button>
         </article>
@@ -116,17 +145,17 @@
         <article class="panel integration-card">
           <h3>Matter Fabric</h3>
           <p>Connected device classes discovered through Matter bridge.</p>
-          <span class="pill" id="pill-matter">demo simulation</span>
+          <span class="pill" id="pill-matter">awaiting live signal</span>
         </article>
         <article class="panel integration-card">
           <h3>Home Assistant</h3>
           <p>Cross-vendor entity sync and routine orchestration via HA bridge.</p>
-          <span class="pill" id="pill-ha">demo simulation</span>
+          <span class="pill" id="pill-ha">awaiting live signal</span>
         </article>
         <article class="panel integration-card">
           <h3>Energy Signal Layer</h3>
           <p>Tariff and time-window intelligence feeding schedule suggestions.</p>
-          <span class="pill" id="pill-energy">demo simulation</span>
+          <span class="pill" id="pill-energy">awaiting live signal</span>
         </article>
       </section>
 

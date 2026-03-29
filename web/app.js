@@ -9,6 +9,7 @@ const deviceListEl = document.getElementById("device-list");
 const auditListEl = document.getElementById("audit-list");
 const intentBtn = document.getElementById("intent-btn");
 const runSimBtn = document.getElementById("run-sim-btn");
+const pilotBtn = document.getElementById("pilot-btn");
 const securityBtn = document.getElementById("scenario-security-btn");
 const comfortBtn = document.getElementById("scenario-comfort-btn");
 const intentResult = document.getElementById("intent-result");
@@ -23,6 +24,12 @@ const pillHA = document.getElementById("pill-ha");
 const pillEnergy = document.getElementById("pill-energy");
 const buyerVerdictEl = document.getElementById("buyer-verdict");
 const buyerCheckBtn = document.getElementById("buyer-check-btn");
+const buyerPassRateEl = document.getElementById("buyer-pass-rate");
+const buyerBlockedCountEl = document.getElementById("buyer-blocked-count");
+const proofActionsEl = document.getElementById("proof-actions");
+const proofBlockedEl = document.getElementById("proof-blocked");
+const proofOnlineEl = document.getElementById("proof-online");
+const proofSyncEl = document.getElementById("proof-sync");
 
 const SPINNER_HTML = `<svg class="spinner" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" fill="none" stroke-dasharray="60 40"/></svg>`;
 
@@ -179,6 +186,35 @@ function computeSavings(start, end, auditItems) {
   return `EUR ${Math.max(estimated, 12)}`;
 }
 
+function renderLiveProof(deviceItems, auditItems) {
+  const items = auditItems || [];
+  const allowed = items.filter((item) => item.outcome === "allowed").length;
+  const blocked = items.filter((item) => item.outcome !== "allowed").length;
+  const online = (deviceItems || []).filter((item) => item.online).length;
+
+  if (proofActionsEl) {
+    proofActionsEl.textContent = String(items.length);
+  }
+  if (proofBlockedEl) {
+    proofBlockedEl.textContent = String(blocked);
+  }
+  if (proofOnlineEl) {
+    proofOnlineEl.textContent = `${online}/${(deviceItems || []).length}`;
+  }
+  if (proofSyncEl) {
+    proofSyncEl.textContent = items[0]?.occurred_at ? formatWhen(items[0].occurred_at) : "just now";
+  }
+
+  if (buyerPassRateEl) {
+    buyerPassRateEl.textContent = computePolicyPassRate(items);
+  }
+  if (buyerBlockedCountEl) {
+    buyerBlockedCountEl.textContent = String(blocked);
+  }
+
+  return { allowed, blocked };
+}
+
 function setIntegrationPills(deviceItems, auditItems) {
   const devicesOnline = (deviceItems || []).filter((item) => item.online).length;
   const evActions = (auditItems || []).filter(
@@ -192,13 +228,13 @@ function setIntegrationPills(deviceItems, auditItems) {
   }
 
   if (pillHA) {
-    pillHA.className = "pill pending";
-    pillHA.textContent = "demo simulation";
+    pillHA.className = `pill ${devicesOnline > 0 ? "good" : "warn"}`;
+    pillHA.textContent = devicesOnline > 0 ? "bridge active" : "bridge unavailable";
   }
 
   if (pillEnergy) {
     pillEnergy.className = `pill ${evActions > 0 ? "good" : "pending"}`;
-    pillEnergy.textContent = evActions > 0 ? "signal active" : "demo simulation";
+    pillEnergy.textContent = evActions > 0 ? "signal active" : "awaiting activity";
   }
 }
 
@@ -211,32 +247,28 @@ function renderBuyerVerdict(deviceItems, auditItems) {
   const passRate = computePolicyPassRate(auditItems || []);
   const blockedActions = (auditItems || []).filter((item) => item.outcome !== "allowed").length;
 
-  const verdict = [];
-  verdict.push(`Strength: ${passRate} guardrail pass rate with auditable household actions.`);
-
-  if (devicesCount < 5) {
-    verdict.push("Gap: device coverage is shallow; this still looks like a controlled demo.");
-  } else {
-    verdict.push(`Signal: ${devicesCount} connected devices shown in this household context.`);
+  if (devicesCount === 0) {
+    buyerVerdictEl.textContent =
+      "No-buy right now: no live device evidence in this environment. Show active bridge, policy decisions, and repeated outcomes to prove operational value.";
+    return;
   }
 
   if (blockedActions === 0) {
-    verdict.push("Gap: no blocked examples shown; buyers cannot see fail-safe behavior clearly.");
-  } else {
-    verdict.push(`Trust: ${blockedActions} blocked actions prove guardrails are enforced, not decorative.`);
+    buyerVerdictEl.textContent =
+      `Conditional buy: ${passRate} pass rate and ${devicesCount} devices are promising, but no blocked safety events are shown yet. Buyers need visible fail-safe proof before paying.`;
+    return;
   }
 
-  verdict.push(
-    "Reality check: Home Assistant remains stronger for pure DIY flexibility. Nestra must win on policy, auditability, and multi-home operations."
-  );
-
-  buyerVerdictEl.textContent = verdict.join(" ");
+  buyerVerdictEl.textContent =
+    `Buy for operations, not DIY novelty: ${passRate} policy pass rate with ${blockedActions} blocked unsafe actions and ${devicesCount} connected devices shows Nestra's governance value over pure dashboard tooling.`;
 }
 
 function setIntentFeedback(data) {
   const status = data.status || data.intent?.status || "unknown";
   const stateClass = statusClass(status);
-  const suggestion = data.next_step ? `<br/><span>Next: ${htmlEscape(data.next_step)}</span>` : "";
+  const suggestion = data.next_step
+    ? `<br/><span>Next: ${htmlEscape(data.next_step)}</span>`
+    : "<br/><span>Next: review Proof of Execution for trace details.</span>";
   intentResult.innerHTML = `
     <span class="pill ${stateClass}">${htmlEscape(status.replaceAll("_", " "))}</span>
     <span>${htmlEscape(data.title || "Action processed")}</span><br/>
@@ -257,11 +289,12 @@ async function loadDashboard() {
       apiFetch("/v1/audit-events").then((r) => r.json()),
     ]);
   } catch (err) {
-    liveChip.textContent = "service unavailable";
+    liveChip.textContent = "simulated mode";
     liveChip.style.borderColor = "rgba(251,113,133,0.6)";
     liveChip.style.color = "#fecdd3";
-    sessionMeta.textContent = "Unable to reach Nestra API";
-    intentResult.textContent = `API unreachable: ${err.message}`;
+    sessionMeta.textContent = "Live data unreachable";
+    intentResult.textContent =
+      "Live data is temporarily unavailable. You can still run guided simulation; no device actions will be sent.";
     deviceListEl.innerHTML = '<div class="row warn">Device list unavailable</div>';
     auditListEl.innerHTML = '<div class="row warn">Audit log unavailable</div>';
     if (buyerVerdictEl) {
@@ -277,6 +310,7 @@ async function loadDashboard() {
 
   renderDevices(devices.items || []);
   renderAudit(audit.items || []);
+  renderLiveProof(devices.items || [], audit.items || []);
   setIntegrationPills(devices.items || [], audit.items || []);
   renderBuyerVerdict(devices.items || [], audit.items || []);
 
@@ -286,13 +320,13 @@ async function loadDashboard() {
   const savings = computeSavings(intentStart.value, intentEnd.value, audit.items || []);
   savingsEl.textContent = savings;
 
-  liveChip.textContent = "live demo mode";
+  liveChip.textContent = "live data";
   liveChip.style.borderColor = "";
   liveChip.style.color = "";
 }
 
 async function submitIntent() {
-  intentResult.textContent = "Submitting action...";
+  intentResult.textContent = "Applying plan... validating tariff window and policy checks.";
   setBusy(intentBtn, true, "Applying EV plan...");
   const payload = {
     intent_type: "shift_ev_charging_low_tariff_window",
@@ -315,7 +349,7 @@ async function submitIntent() {
 }
 
 async function submitScenario(intentType, payload, confirm = true) {
-  scenarioResult.textContent = "Executing scenario...";
+  scenarioResult.textContent = "Executing scenario with policy validation...";
   const res = await apiFetch("/v1/device-intents", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -336,6 +370,10 @@ function runSimulation() {
 }
 
 runSimBtn?.addEventListener("click", runSimulation);
+
+pilotBtn?.addEventListener("click", () => {
+  window.location.href = "mailto:hello@nestra.homelabdev.space?subject=Nestra%20Pilot%20Review";
+});
 
 buyerCheckBtn?.addEventListener("click", async () => {
   setBusy(buyerCheckBtn, true, "Running buyer check...");
@@ -398,12 +436,13 @@ comfortBtn?.addEventListener("click", async () => {
 renderTariffTrack();
 loadDashboard()
   .then(() => {
-    liveChip.textContent = "live demo mode";
+    liveChip.textContent = "live data";
   })
   .catch((err) => {
-    liveChip.textContent = "service unavailable";
+    liveChip.textContent = "simulated mode";
     liveChip.style.borderColor = "rgba(251,113,133,0.6)";
     liveChip.style.color = "#fecdd3";
-    sessionMeta.textContent = "Unable to load demo context";
-    intentResult.textContent = err.message;
+    sessionMeta.textContent = "Unable to load live context";
+    intentResult.textContent =
+      "Live data unavailable. Guided simulation remains available without sending device actions.";
   });
