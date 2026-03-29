@@ -138,11 +138,13 @@ class AuditHistoryResponse(BaseModel):
 
 class AssistantTurnRequest(BaseModel):
     text: str = Field(min_length=1, max_length=500)
+    confirm_intent_id: str | None = None
 
 
 class AssistantAction(BaseModel):
     type: Literal["device_intent", "status_summary", "clarification", "unsupported", "remember_fact"]
     intent_type: str | None = None
+    intent_id: str | None = None
     status: Literal["accepted", "blocked", "pending_confirmation", "completed", "none"] = "none"
     audit_event_id: str | None = None
 

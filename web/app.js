@@ -1117,11 +1117,32 @@ async function runCommand(inputText) {
 
     // Handle clarifying question (pending confirmation)
     if (result.clarifying_question) {
-      // Show modal and wait for user confirmation
-      await showConfirmation("Confirm", result.clarifying_question, async () => {
-        // Resubmit with confirm via a new endpoint or same with confirm flag (not implemented yet)
-        setAgentBubble("Confirmation flow not implemented yet.");
-      });
+      const intentId = result.action?.intent_id;
+      if (!intentId) {
+        setAgentBubble("Confirmation required, but intent ID missing.");
+      } else {
+        await showConfirmation("Confirm", result.clarifying_question, async () => {
+          try {
+            const res = await apiFetch("/assistant/turn", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ confirm_intent_id: intentId })
+            });
+            const data = await res.json();
+            const reply = data.reply_text || "Confirmed.";
+            addSpeechLine("agent", reply);
+            setAgentBubble(reply);
+            if (data.executed_actions && Array.isArray(data.executed_actions)) {
+              data.executed_actions.forEach((act) => {
+                addSpeechLine("agent", `✓ ${act.message}`);
+              });
+            }
+          } catch (err) {
+            addSpeechLine("agent", `Confirmation failed: ${err.message}`);
+            setAgentBubble(`Confirmation failed: ${err.message}`);
+          }
+        });
+      }
     }
   } catch (err) {
     const failure = `I could not complete that request: ${err.message}`;

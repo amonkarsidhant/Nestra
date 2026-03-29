@@ -4,7 +4,7 @@ import logging
 import os
 import re
 import time
-from typing import Annotated
+from typing import Annotated, Any
 from urllib import error as urllib_error
 from urllib import request as urllib_request
 from uuid import uuid4
@@ -13,16 +13,19 @@ from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 
 from app.core.auth import get_demo_or_authenticated_context
 from app.core.context import RequestContext
+from app.core.db import get_db
 from app.core.voice import transcribe_audio_with_telemetry
 from app.domain.audit import emit_audit_event
 from app.domain.models import (
     AssistantAction,
     AssistantTurnRequest,
     AssistantTurnResponse,
+    AuditEvent,
     AuditHistoryResponse,
     DeviceIntentCreateRequest,
     DeviceIntentCreateResponse,
     DeviceListResponse,
+    DeviceState,
     DeviceStateUpdateRequest,
     DeviceUpdateResponse,
     ExecutedAction,
@@ -33,6 +36,18 @@ from app.domain.models import (
     VoiceTranscriptionResponse,
 )
 from app.domain.repository import domain_repository
+
+# Optional Home Assistant adapter
+try:
+    from app.adapters.homeassistant import get_adapter_from_env
+    _ha_adapter = get_adapter_from_env()
+except Exception:
+    _ha_adapter = None
+
+try:
+    HA_ENTITY_MAP = json.loads(os.getenv("HA_ENTITY_MAP", "{}"))
+except json.JSONDecodeError:
+    HA_ENTITY_MAP = {}
 
 router = APIRouter(tags=["nestra-demo"])
 logger = logging.getLogger("uvicorn.error")
@@ -283,6 +298,20 @@ def _execute_action_tags(
                 ))
                 continue
 
+            # If Home Assistant adapter is configured for this device, try it first
+            if _ha_adapter and device_id in HA_ENTITY_MAP:
+                success, msg = _invoke_ha_if_available(device_id, action, value)
+                if not success:
+                    executed.append(ExecutedAction(
+                        type="device",
+                        device_id=device_id,
+                        action=action,
+                        value=value,
+                        status="failed",
+                        message=msg
+                    ))
+                    continue
+
             # Apply state update
             from app.domain.models import DeviceState
             new_state = DeviceState(**updates)
@@ -361,6 +390,136 @@ def _handle_remember_fact(text: str, context: RequestContext) -> AssistantTurnRe
         action=AssistantAction(type="remember_fact", status="completed"),
         executed_actions=[],
     )
+
+
+def _execute_device_intent_actions(intent: DeviceIntent, context: RequestContext) -> list[ExecutedAction]:
+    """Execute deterministic actions for known intent types (used for fallback and confirmation)."""
+    actions: list[ExecutedAction] = []
+    i_type = intent.intent_type
+    payload = intent.payload
+    try:
+        if i_type == "preheat_home_arrival":
+            devices = domain_repository.list_devices(context)
+            thermostat = next((d for d in devices if d.type == "thermostat"), None)
+            if not thermostat:
+                raise ValueError("No thermostat device found")
+            temp = float(payload.get("target_temperature_c"))
+            updates = {"target_temperature_c": temp}
+            new_state = DeviceState(**updates)
+            updated = domain_repository.update_state(context, thermostat.id, new_state)
+            audit = AuditEvent(
+                event_id=f"evt_{uuid4().hex}",
+                occurred_at=datetime.utcnow(),
+                tenant_id=context.tenant_id,
+                household_id=context.household_id,
+                actor_id=context.actor_id,
+                actor_role=context.actor_role,
+                action="device.temperature",
+                resource_type="device",
+                resource_id=thermostat.id,
+                outcome="allowed",
+                reason=None,
+                metadata={"state": updated.state.model_dump()},
+            )
+            domain_repository.write_audit_event(audit)
+            actions.append(ExecutedAction(
+                type="device",
+                device_id=thermostat.id,
+                action="temperature",
+                value=temp,
+                status="completed",
+                message=f"Thermostat set to {temp}°C"
+            ))
+        elif i_type == "arm_night_security_sweep":
+            devices = domain_repository.list_devices(context)
+            lock = next((d for d in devices if d.type == "lock"), None)
+            if not lock:
+                raise ValueError("No lock device found")
+            updates = {"lock_state": "locked"}
+            new_state = DeviceState(**updates)
+            updated = domain_repository.update_state(context, lock.id, new_state)
+            audit = AuditEvent(
+                event_id=f"evt_{uuid4().hex}",
+                occurred_at=datetime.utcnow(),
+                tenant_id=context.tenant_id,
+                household_id=context.household_id,
+                actor_id=context.actor_id,
+                actor_role=context.actor_role,
+                action="device.lock",
+                resource_type="device",
+                resource_id=lock.id,
+                outcome="allowed",
+                reason=None,
+                metadata={"state": updated.state.model_dump()},
+            )
+            domain_repository.write_audit_event(audit)
+            actions.append(ExecutedAction(
+                type="device",
+                device_id=lock.id,
+                action="lock",
+                value="locked",
+                status="completed",
+                message="Lock engaged"
+            ))
+        elif i_type == "shift_ev_charging_low_tariff_window":
+            devices = domain_repository.list_devices(context)
+            ev = next((d for d in devices if d.type == "plug" and "ev" in d.name.lower()), None)
+            if not ev:
+                raise ValueError("EV charger not found")
+            updates = {"on_off": True}
+            new_state = DeviceState(**updates)
+            updated = domain_repository.update_state(context, ev.id, new_state)
+            audit = AuditEvent(
+                event_id=f"evt_{uuid4().hex}",
+                occurred_at=datetime.utcnow(),
+                tenant_id=context.tenant_id,
+                household_id=context.household_id,
+                actor_id=context.actor_id,
+                actor_role=context.actor_role,
+                action="device.on",
+                resource_type="device",
+                resource_id=ev.id,
+                outcome="allowed",
+                reason=None,
+                metadata={"state": updated.state.model_dump()},
+            )
+            domain_repository.write_audit_event(audit)
+            actions.append(ExecutedAction(
+                type="device",
+                device_id=ev.id,
+                action="on",
+                value=True,
+                status="completed",
+                message="EV charger enabled"
+            ))
+        else:
+            actions.append(ExecutedAction(
+                type="device",
+                device_id=None,
+                action="unknown",
+                value=None,
+                status="skipped",
+                message=f"Unsupported intent type: {i_type}"
+            ))
+    except HTTPException as e:
+        actions.append(ExecutedAction(
+            type="device",
+            device_id=None,
+            action=i_type,
+            value=None,
+            status="failed",
+            message=str(e.detail) if hasattr(e, "detail") else str(e)
+        ))
+    except Exception as e:
+        actions.append(ExecutedAction(
+            type="device",
+            device_id=None,
+            action=i_type,
+            value=None,
+            status="failed",
+            message=str(e)
+        ))
+    return actions
 
 
 def _llm_base_url() -> str:
@@ -754,8 +913,7 @@ def create_device_intent(
     payload: DeviceIntentCreateRequest,
     context: Annotated[RequestContext, Depends(get_demo_or_authenticated_context)],
 ) -> DeviceIntentCreateResponse:
-    return _process_device_intent(payload, context)
-
+     return _process_device_intent(payload, context)
 
 @router.post("/assistant/turn", response_model=AssistantTurnResponse)
 def assistant_turn(
@@ -763,6 +921,77 @@ def assistant_turn(
     context: Annotated[RequestContext, Depends(get_demo_or_authenticated_context)],
 ) -> AssistantTurnResponse:
     turn_started = time.perf_counter()
+
+    # Inline confirmation handling
+    if payload.confirm_intent_id:
+        with get_db() as conn:
+            row = conn.execute(
+                "SELECT * FROM device_intents WHERE id = ? AND tenant_id = ? AND household_id = ?",
+                (payload.confirm_intent_id, context.tenant_id, context.household_id),
+            ).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Intent not found")
+        intent = DeviceIntent(
+            id=row["id"],
+            tenant_id=row["tenant_id"],
+            household_id=row["household_id"],
+            actor_id=row["actor_id"],
+            intent_type=row["intent_type"],
+            payload=json.loads(row["payload_json"]),
+            status=row["status"],
+            requires_confirmation=bool(row["requires_confirmation"]),
+            created_at=datetime.fromisoformat(row["created_at"]),
+            confirmed_at=datetime.fromisoformat(row["confirmed_at"]) if row["confirmed_at"] else None,
+        )
+        if intent.status != "pending_confirmation":
+            return AssistantTurnResponse(
+                input_text="",
+                reply_text="This intent has already been processed.",
+                action=AssistantAction(
+                    type="device_intent",
+                    intent_type=intent.intent_type,
+                    intent_id=intent.id,
+                    status=intent.status,
+                ),
+                executed_actions=[],
+            )
+        now_str = datetime.utcnow().isoformat()
+        with get_db() as conn:
+            conn.execute(
+                "UPDATE device_intents SET status = ?, confirmed_at = ? WHERE id = ?",
+                ("accepted", now_str, payload.confirm_intent_id),
+            )
+        executed_actions = _execute_device_intent_actions(intent, context)
+        audit = AuditEvent(
+            event_id=f"evt_{uuid4().hex}",
+            occurred_at=datetime.utcnow(),
+            tenant_id=context.tenant_id,
+            household_id=context.household_id,
+            actor_id=context.actor_id,
+            actor_role=context.actor_role,
+            action="device_intent.confirm",
+            resource_type="device_intent",
+            resource_id=intent.id,
+            outcome="allowed",
+            reason=None,
+            metadata={"intent_type": intent.intent_type},
+        )
+        domain_repository.write_audit_event(audit)
+        reply_text = f"Confirmed: {intent.intent_type.replace('_', ' ')}. Actions executed."
+        return AssistantTurnResponse(
+            input_text="",
+            reply_text=reply_text,
+            action=AssistantAction(
+                type="device_intent",
+                intent_type=intent.intent_type,
+                intent_id=intent.id,
+                status="accepted",
+                audit_event_id=audit.event_id,
+            ),
+            executed_actions=executed_actions,
+            clarifying_question=None,
+        )
+
     text = payload.text.strip()
     normalized = text.lower()
 
@@ -827,6 +1056,7 @@ def assistant_turn(
                         action=AssistantAction(
                             type=action_type,
                             intent_type=intent_result.intent.intent_type,
+                            intent_id=intent_result.intent.id,
                             status=intent_result.status,
                             audit_event_id=intent_result.audit_event_id,
                         ),
@@ -881,7 +1111,12 @@ def assistant_turn(
     # Process mapped intent
     intent_result = _process_device_intent(mapped, context)
     action_type = "device_intent"
+    executed_actions: list[ExecutedAction] = []
+    clarifying_question: str | None = None
+
     if intent_result.status == "accepted":
+        # Execute deterministic actions for this intent
+        executed_actions = _execute_device_intent_actions(intent_result.intent, context)
         reply = f"Done. {intent_result.message}"
     elif intent_result.status == "pending_confirmation":
         reply = f"I need your confirmation. {intent_result.message}"
@@ -897,10 +1132,11 @@ def assistant_turn(
         action=AssistantAction(
             type=action_type,
             intent_type=intent_result.intent.intent_type,
+            intent_id=intent_result.intent.id,
             status=intent_result.status,
             audit_event_id=intent_result.audit_event_id,
         ),
-        executed_actions=[],
+        executed_actions=executed_actions,
         clarifying_question=clarifying_question,
         next_step=intent_result.next_step,
         guardrail=intent_result.guardrail,
