@@ -13,6 +13,7 @@ from app.domain.models import (
     DeviceIntent,
     DeviceState,
     Household,
+    Memory,
     Tenant,
 )
 
@@ -198,6 +199,46 @@ class DomainRepository:
             payload["metadata"] = json.loads(payload.pop("metadata_json"))
             events.append(AuditEvent(**payload))
         return events
+
+    # Memory CRUD
+    def create_memory(self, actor_id: str, key: str, value: str) -> Memory:
+        memory_id = f"mem_{uuid4().hex}"
+        now = datetime.utcnow().isoformat()
+        with get_db() as conn:
+            conn.execute(
+                """
+                INSERT INTO memories (id, actor_id, key, value, created_at)
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                (memory_id, actor_id, key, value, now),
+            )
+        return Memory(id=memory_id, actor_id=actor_id, key=key, value=value, created_at=datetime.fromisoformat(now))
+
+    def search_memories(self, actor_id: str, query: str) -> list[Memory]:
+        # Simple substring search; FTS5 would be better but requires virtual table setup.
+        with get_db() as conn:
+            rows = conn.execute(
+                """
+                SELECT id, actor_id, key, value, created_at FROM memories
+                WHERE actor_id = ? AND (key LIKE ? OR value LIKE ?)
+                ORDER BY created_at DESC
+                """,
+                (actor_id, f"%{query}%", f"%{query}%"),
+            ).fetchall()
+        memories: list[Memory] = []
+        for row in rows:
+            payload = dict(row)
+            payload["created_at"] = datetime.fromisoformat(payload["created_at"])
+            memories.append(Memory(**payload))
+        return memories
+
+    def delete_memory(self, actor_id: str, memory_id: str) -> bool:
+        with get_db() as conn:
+            cur = conn.execute(
+                "DELETE FROM memories WHERE id = ? AND actor_id = ?",
+                (memory_id, actor_id),
+            )
+        return cur.rowcount > 0
 
 
 domain_repository = DomainRepository()

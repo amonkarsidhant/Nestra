@@ -3,64 +3,94 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Nestra Assistant</title>
+    <title>Nestra</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700&family=Manrope:wght@500;600;700&display=swap"
-      rel="stylesheet"
-    />
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="/style.css" />
   </head>
   <body>
-    <main class="stage">
-      <p class="presence">
-        <span class="presence-dot" id="presence-dot" aria-hidden="true"></span>
-        <span id="presence-text">Nestra assistant online</span>
-      </p>
+    <main class="avatar-stage">
+      <canvas class="avatar-canvas" id="avatar-canvas" aria-label="Nestra male avatar"></canvas>
+      <div class="overlay"></div>
+      <div class="voice-bars" id="voice-bars" aria-hidden="true">
+        <span></span><span></span><span></span><span></span><span></span>
+      </div>
 
-      <section class="agent-shell" aria-label="Live assistant">
-        <p class="agent-bubble" id="agent-bubble" aria-live="polite">Hello, I am here and listening.</p>
-        <div class="human-agent idle" id="human-agent" aria-hidden="true">
-          <div class="agent-head">
-            <span class="agent-eye"></span>
-            <span class="agent-eye"></span>
-            <span class="agent-mouth"></span>
-          </div>
-          <div class="agent-body"></div>
-          <div class="agent-aura"></div>
-        </div>
-
-        <p class="agent-state" id="agent-state-text">idle</p>
-      </section>
+       <header class="topbar">
+         <p class="brand">
+           <svg class="brand-logo" viewBox="0 0 40 40" aria-hidden="true" width="28" height="28">
+             <path d="M10 10 L10 30 L20 20 L30 30 L30 10" stroke="currentColor" stroke-width="4" fill="none"/>
+           </svg>
+           <span class="brand-text">Nestra</span>
+         </p>
+         <div class="topbar-right">
+           <p class="presence" aria-live="polite">
+             <span class="presence-dot" id="presence-dot" aria-hidden="true"></span>
+             <span id="presence-text">Initializing voice channel</span>
+           </p>
+           <div class="controls" aria-label="Voice controls">
+             <button class="control-btn" id="control-listen" type="button" aria-pressed="false">Pause mic</button>
+             <button class="control-btn" id="control-voice" type="button" aria-pressed="false">Mute voice</button>
+             <button class="control-btn" id="control-stop" type="button">Stop now</button>
+             <button class="control-btn" id="help-btn" type="button" aria-label="Help">?</button>
+             <button class="control-btn" id="control-devices" type="button">Devices</button>
+           </div>
+         </div>
+       </header>
 
       <section class="conversation" aria-label="Conversation">
+        <p class="agent-bubble" id="agent-bubble" aria-live="polite">Stand by. I am syncing context.</p>
         <div id="assistant-log" class="assistant-log" aria-live="polite"></div>
       </section>
+     </main>
 
-      <section class="controls" aria-label="Assistant controls">
-        <div class="mode-toggle" role="tablist" aria-label="Input mode">
-          <button id="mode-text" class="mode active" type="button">Text</button>
-          <button id="mode-voice" class="mode" type="button">Voice</button>
-          <button id="tts-toggle" class="mode" type="button">Voice reply on</button>
-        </div>
+     <!-- Orb Canvas (behind avatar) -->
+     <canvas class="orb-canvas" id="orb-canvas" aria-hidden="true"></canvas>
 
-        <div class="command-row" id="text-row">
-          <input
-            id="nl-input"
-            type="text"
-            placeholder="Tell me what to do. Example: Good night and arm security"
-            autocomplete="off"
-          />
-          <button id="nl-send-btn" type="button">Send</button>
-        </div>
+     <!-- Help Modal -->
+     <div class="modal" id="help-modal" role="dialog" aria-labelledby="help-title" aria-modal="true" hidden>
+       <div class="modal-overlay"></div>
+       <div class="modal-content">
+         <h3 id="help-title">Keyboard Shortcuts</h3>
+         <ul class="shortcut-list">
+           <li><kbd>L</kbd> Pause/Resume microphone</li>
+           <li><kbd>M</kbd> Mute/Unmute voice output</li>
+           <li><kbd>Esc</kbd> Stop current action</li>
+           <li><kbd>?</kbd> Show this help</li>
+         </ul>
+         <p class="modal-note">Voice commands: Try saying "turn on kitchen lights" or "what's the temperature?"</p>
+         <button class="modal-close" onclick="closeHelp()">Got it</button>
+       </div>
+     </div>
 
-        <div class="voice-row hidden" id="voice-row">
-          <button id="voice-btn" type="button">Start listening</button>
-        </div>
-      </section>
-    </main>
+     <!-- Confirmation Modal -->
+     <div class="modal" id="confirm-modal" role="alertdialog" aria-labelledby="confirm-title" aria-modal="true" hidden>
+       <div class="modal-overlay"></div>
+       <div class="modal-content modal-small">
+         <h3 id="confirm-title">Confirm Action</h3>
+         <p id="confirm-message"></p>
+         <div class="modal-actions">
+           <button class="control-btn" id="confirm-yes">Yes</button>
+           <button class="control-btn" id="confirm-no">No</button>
+         </div>
+       </div>
+     </div>
 
-    <script src="/app.js"></script>
-  </body>
-</html>
+     <!-- Device Inventory Panel -->
+     <aside class="device-panel" id="device-panel" aria-label="Devices" hidden>
+       <div class="device-panel-header">
+         <h2>Devices</h2>
+         <button class="control-btn" id="close-devices">×</button>
+       </div>
+       <div class="device-list" id="device-list">
+         <!-- Populated by JS -->
+       </div>
+     </aside>
+
+     <!-- Accessibility: Avatar status live region -->
+     <div class="sr-only" aria-live="polite" aria-atomic="true" id="avatar-status"></div>
+
+     <script type="module" src="/app.js?v=20260329z"></script>
+   </body>
+ </html>

@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import Annotated
-from typing import Literal
+from typing import Literal, Optional
 
 from pydantic import BaseModel, Field, StringConstraints, model_validator
 
@@ -141,15 +141,47 @@ class AssistantTurnRequest(BaseModel):
 
 
 class AssistantAction(BaseModel):
-    type: Literal["device_intent", "status_summary", "clarification", "unsupported"]
+    type: Literal["device_intent", "status_summary", "clarification", "unsupported", "remember_fact"]
     intent_type: str | None = None
-    status: Literal["accepted", "blocked", "pending_confirmation", "completed", "none"]
+    status: Literal["accepted", "blocked", "pending_confirmation", "completed", "none"] = "none"
     audit_event_id: str | None = None
+
+
+class ExecutedAction(BaseModel):
+    type: str
+    device_id: str | None = None
+    action: str
+    value: Optional[float | int | bool | str] = None
+    status: str
+    message: str
 
 
 class AssistantTurnResponse(BaseModel):
     input_text: str
     reply_text: str
     action: AssistantAction
-    next_step: str | None = None
-    guardrail: str | None = None
+    executed_actions: list[ExecutedAction] = Field(default_factory=list)
+    clarifying_question: Optional[str] = None
+    next_step: Optional[str] = None
+    guardrail: Optional[str] = None
+
+
+class VoiceTranscriptionResponse(BaseModel):
+    text: str = Field(min_length=1)
+
+
+class Memory(BaseModel):
+    id: str
+    actor_id: str
+    key: str
+    value: str
+    created_at: datetime
+
+
+class MemoryCreateRequest(BaseModel):
+    key: str
+    value: str
+
+
+class MemorySearchResponse(BaseModel):
+    items: list[Memory]

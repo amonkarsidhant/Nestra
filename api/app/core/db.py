@@ -105,6 +105,16 @@ def init_db() -> None:
               FOREIGN KEY (household_id) REFERENCES households(id),
               FOREIGN KEY (actor_id) REFERENCES actors(id)
             );
+
+            CREATE TABLE IF NOT EXISTS memories (
+              id TEXT PRIMARY KEY,
+              actor_id TEXT NOT NULL,
+              key TEXT NOT NULL,
+              value TEXT NOT NULL,
+              created_at TEXT NOT NULL,
+              FOREIGN KEY (actor_id) REFERENCES actors(id)
+            );
+            CREATE INDEX IF NOT EXISTS idx_memories_actor_key ON memories(actor_id, key);
             """
         )
 
