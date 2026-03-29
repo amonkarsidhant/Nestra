@@ -345,6 +345,164 @@ button:hover {
   gap: 12px;
 }
 
+.jarvis-grid {
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: 0.95fr 1.3fr;
+  gap: 12px;
+}
+
+.agent-panel,
+.conversation-panel {
+  padding: 16px;
+}
+
+.human-agent {
+  margin: 14px auto 0;
+  width: 180px;
+  height: 190px;
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+
+.agent-aura {
+  position: absolute;
+  width: 150px;
+  height: 150px;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(66, 245, 176, 0.32), rgba(8, 14, 24, 0));
+  filter: blur(6px);
+  z-index: 0;
+}
+
+.agent-head {
+  position: relative;
+  width: 82px;
+  height: 82px;
+  border-radius: 999px;
+  border: 1px solid rgba(125, 211, 252, 0.5);
+  background: linear-gradient(180deg, rgba(26, 40, 63, 0.95), rgba(9, 16, 28, 0.95));
+  z-index: 2;
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  align-items: center;
+  box-shadow: 0 0 40px rgba(125, 211, 252, 0.16);
+}
+
+.agent-eye {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: #9be7ff;
+  box-shadow: 0 0 10px rgba(125, 211, 252, 0.9);
+}
+
+.agent-mouth {
+  position: absolute;
+  bottom: 18px;
+  width: 22px;
+  height: 4px;
+  border-radius: 999px;
+  background: #7dd3fc;
+  opacity: 0.85;
+}
+
+.agent-body {
+  position: absolute;
+  top: 86px;
+  width: 110px;
+  height: 82px;
+  border-radius: 14px;
+  border: 1px solid rgba(125, 211, 252, 0.34);
+  background: linear-gradient(180deg, rgba(17, 28, 45, 0.94), rgba(9, 15, 25, 0.95));
+  z-index: 1;
+}
+
+.human-agent.listening .agent-aura,
+.human-agent.thinking .agent-aura,
+.human-agent.speaking .agent-aura {
+  animation: auraPulse 1300ms ease-in-out infinite;
+}
+
+.human-agent.listening .agent-mouth,
+.human-agent.speaking .agent-mouth {
+  animation: mouthTalk 360ms ease-in-out infinite;
+}
+
+.human-agent.error .agent-eye,
+.human-agent.error .agent-mouth {
+  background: #fb7185;
+  box-shadow: 0 0 8px rgba(251, 113, 133, 0.8);
+}
+
+@keyframes auraPulse {
+  0%,
+  100% {
+    transform: scale(0.95);
+    opacity: 0.65;
+  }
+  50% {
+    transform: scale(1.08);
+    opacity: 1;
+  }
+}
+
+@keyframes mouthTalk {
+  0%,
+  100% {
+    width: 22px;
+    height: 4px;
+  }
+  50% {
+    width: 16px;
+    height: 10px;
+  }
+}
+
+.assistant-log {
+  margin-top: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(8, 14, 24, 0.76);
+  min-height: 180px;
+  max-height: 260px;
+  overflow: auto;
+  padding: 10px;
+  display: grid;
+  gap: 8px;
+}
+
+.speech-line {
+  border-radius: 10px;
+  padding: 8px 10px;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.speech-line.user {
+  background: rgba(59, 130, 246, 0.2);
+  border: 1px solid rgba(125, 211, 252, 0.4);
+}
+
+.speech-line.agent {
+  background: rgba(16, 185, 129, 0.16);
+  border: 1px solid rgba(52, 211, 153, 0.35);
+}
+
+.assistant-controls {
+  margin-top: 10px;
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.assistant-controls input {
+  width: 100%;
+}
+
 .integration-card {
   padding: 14px;
 }
@@ -590,6 +748,10 @@ button:focus-visible {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .jarvis-grid {
+    grid-template-columns: 1fr;
+  }
+
   .workspace,
   .tariff-track {
     grid-template-columns: 1fr;
@@ -614,6 +776,7 @@ button:focus-visible {
   .live-proof-grid,
   .proof-grid,
   .integration-grid,
+  .assistant-controls,
   .time-grid {
     grid-template-columns: 1fr;
   }

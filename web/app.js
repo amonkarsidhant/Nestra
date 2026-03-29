@@ -30,6 +30,17 @@ const proofActionsEl = document.getElementById("proof-actions");
 const proofBlockedEl = document.getElementById("proof-blocked");
 const proofOnlineEl = document.getElementById("proof-online");
 const proofSyncEl = document.getElementById("proof-sync");
+const humanAgentEl = document.getElementById("human-agent");
+const agentStateTextEl = document.getElementById("agent-state-text");
+const assistantLogEl = document.getElementById("assistant-log");
+const voiceBtn = document.getElementById("voice-btn");
+const nlInput = document.getElementById("nl-input");
+const nlSendBtn = document.getElementById("nl-send-btn");
+const ttsToggleBtn = document.getElementById("tts-toggle");
+
+let speechEnabled = true;
+let recognition = null;
+let recognizing = false;
 
 const SPINNER_HTML = `<svg class="spinner" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" fill="none" stroke-dasharray="60 40"/></svg>`;
 
@@ -79,6 +90,41 @@ function htmlEscape(value) {
     .replaceAll("'", "&#039;");
 }
 
+function setAgentState(state) {
+  if (!humanAgentEl || !agentStateTextEl) {
+    return;
+  }
+
+  humanAgentEl.classList.remove("idle", "listening", "thinking", "speaking", "error");
+  humanAgentEl.classList.add(state);
+  agentStateTextEl.textContent = state;
+}
+
+function addSpeechLine(role, text) {
+  if (!assistantLogEl) {
+    return;
+  }
+  const line = document.createElement("div");
+  line.className = `speech-line ${role}`;
+  line.textContent = text;
+  assistantLogEl.appendChild(line);
+  assistantLogEl.scrollTop = assistantLogEl.scrollHeight;
+}
+
+function speak(text) {
+  if (!speechEnabled || !window.speechSynthesis) {
+    return;
+  }
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.rate = 1;
+  utterance.pitch = 0.98;
+  utterance.onstart = () => setAgentState("speaking");
+  utterance.onend = () => setAgentState("idle");
+  utterance.onerror = () => setAgentState("error");
+  window.speechSynthesis.cancel();
+  window.speechSynthesis.speak(utterance);
+}
+
 async function apiFetch(path, options = {}) {
   const res = await fetch(`${API_BASE}${path}`, options);
   if (!res.ok) {
@@ -91,6 +137,50 @@ async function apiFetch(path, options = {}) {
     throw new Error(detail);
   }
   return res;
+}
+
+function initSpeechRecognition() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition || !voiceBtn) {
+    if (voiceBtn) {
+      voiceBtn.disabled = true;
+      voiceBtn.textContent = "Voice unavailable";
+    }
+    return;
+  }
+
+  recognition = new SpeechRecognition();
+  recognition.continuous = false;
+  recognition.interimResults = false;
+  recognition.lang = "en-US";
+
+  recognition.onstart = () => {
+    recognizing = true;
+    setAgentState("listening");
+    voiceBtn.textContent = "Listening...";
+  };
+
+  recognition.onend = () => {
+    recognizing = false;
+    voiceBtn.textContent = "Start voice";
+    if (!window.speechSynthesis?.speaking) {
+      setAgentState("idle");
+    }
+  };
+
+  recognition.onerror = () => {
+    setAgentState("error");
+    addSpeechLine("agent", "I could not capture your voice. Please try again or type the command.");
+  };
+
+  recognition.onresult = async (event) => {
+    const transcript = event.results?.[0]?.[0]?.transcript?.trim();
+    if (!transcript) {
+      return;
+    }
+    nlInput.value = transcript;
+    await runNaturalLanguageCommand(transcript);
+  };
 }
 
 function renderTariffTrack() {
@@ -263,6 +353,81 @@ function renderBuyerVerdict(deviceItems, auditItems) {
     `Buy for operations, not DIY novelty: ${passRate} policy pass rate with ${blockedActions} blocked unsafe actions and ${devicesCount} connected devices shows Nestra's governance value over pure dashboard tooling.`;
 }
 
+function summarizeStatus(devicesItems, auditItems) {
+  const devices = devicesItems || [];
+  const audit = auditItems || [];
+  const online = devices.filter((item) => item.online).length;
+  const blocked = audit.filter((item) => item.outcome !== "allowed").length;
+  return `Current status: ${online} of ${devices.length} devices online, ${blocked} blocked unsafe actions in recent logs, and policy pass rate ${computePolicyPassRate(audit)}.`;
+}
+
+async function runNaturalLanguageCommand(inputText) {
+  const text = (inputText || "").trim();
+  if (!text) {
+    return;
+  }
+
+  addSpeechLine("user", text);
+  setAgentState("thinking");
+
+  const command = text.toLowerCase();
+  try {
+    if (command.includes("good night") || command.includes("arm") || command.includes("security")) {
+      await submitScenario("arm_night_security_sweep", {
+        arm_time: "22:30",
+        zones: ["entryway", "garage", "living-room"],
+      });
+      const response =
+        "Night security sweep armed with policy checks. Review Proof of Execution for audit details.";
+      addSpeechLine("agent", response);
+      speak(response);
+      return;
+    }
+
+    if (command.includes("preheat") || command.includes("arriving") || command.includes("i am home") || command.includes("i'm home")) {
+      await submitScenario("preheat_home_arrival", {
+        arrival_time: "18:00",
+        target_temperature_c: 21.5,
+      });
+      const response = "Comfort preheat scheduled for arrival. Policy and audit checks were applied.";
+      addSpeechLine("agent", response);
+      speak(response);
+      return;
+    }
+
+    if (command.includes("ev") || command.includes("charge") || command.includes("tariff")) {
+      await submitIntent();
+      const response =
+        "EV low-tariff plan processed. I validated the window and logged the execution path.";
+      addSpeechLine("agent", response);
+      speak(response);
+      return;
+    }
+
+    if (command.includes("status") || command.includes("summary") || command.includes("home status")) {
+      const [devices, audit] = await Promise.all([
+        apiFetch("/v1/devices").then((r) => r.json()),
+        apiFetch("/v1/audit-events").then((r) => r.json()),
+      ]);
+      const response = summarizeStatus(devices.items || [], audit.items || []);
+      addSpeechLine("agent", response);
+      speak(response);
+      return;
+    }
+
+    const fallback =
+      "I understood the request but I only support security sweep, preheat arrival, EV tariff optimization, or status summary in this MVP.";
+    addSpeechLine("agent", fallback);
+    speak(fallback);
+    setAgentState("idle");
+  } catch (err) {
+    const failure = `I could not complete that command: ${err.message}`;
+    addSpeechLine("agent", failure);
+    speak(failure);
+    setAgentState("error");
+  }
+}
+
 function setIntentFeedback(data) {
   const status = data.status || data.intent?.status || "unknown";
   const stateClass = statusClass(status);
@@ -375,6 +540,39 @@ pilotBtn?.addEventListener("click", () => {
   window.location.href = "mailto:hello@nestra.homelabdev.space?subject=Nestra%20Pilot%20Review";
 });
 
+voiceBtn?.addEventListener("click", () => {
+  if (!recognition) {
+    return;
+  }
+  if (recognizing) {
+    recognition.stop();
+    return;
+  }
+  recognition.start();
+});
+
+nlSendBtn?.addEventListener("click", async () => {
+  await runNaturalLanguageCommand(nlInput.value);
+  nlInput.value = "";
+});
+
+nlInput?.addEventListener("keydown", async (event) => {
+  if (event.key !== "Enter") {
+    return;
+  }
+  event.preventDefault();
+  await runNaturalLanguageCommand(nlInput.value);
+  nlInput.value = "";
+});
+
+ttsToggleBtn?.addEventListener("click", () => {
+  speechEnabled = !speechEnabled;
+  ttsToggleBtn.textContent = speechEnabled ? "Voice on" : "Voice off";
+  if (!speechEnabled && window.speechSynthesis) {
+    window.speechSynthesis.cancel();
+  }
+});
+
 buyerCheckBtn?.addEventListener("click", async () => {
   setBusy(buyerCheckBtn, true, "Running buyer check...");
   try {
@@ -432,6 +630,13 @@ comfortBtn?.addEventListener("click", async () => {
     setBusy(comfortBtn, false, "");
   }
 });
+
+initSpeechRecognition();
+setAgentState("idle");
+addSpeechLine(
+  "agent",
+  "Hello, I am Nestra Assistant. You can say: Good night, Preheat home, Optimize EV charging, or Home status."
+);
 
 renderTariffTrack();
 loadDashboard()

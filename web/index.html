@@ -159,6 +159,45 @@
         </article>
       </section>
 
+      <section class="jarvis-grid">
+        <article class="panel agent-panel">
+          <div class="panel-head">
+            <h3>Nestra Assistant</h3>
+            <span class="tag" id="agent-state-text">idle</span>
+          </div>
+          <p class="subtle">
+            Talk naturally. Nestra interprets intent, validates policy, and responds with clear actions.
+          </p>
+          <div class="human-agent" id="human-agent" aria-hidden="true">
+            <div class="agent-head">
+              <span class="agent-eye"></span>
+              <span class="agent-eye"></span>
+              <span class="agent-mouth"></span>
+            </div>
+            <div class="agent-body"></div>
+            <div class="agent-aura"></div>
+          </div>
+        </article>
+
+        <article class="panel conversation-panel">
+          <div class="panel-head">
+            <h3>Natural Language Console</h3>
+            <span class="tag">Voice + text</span>
+          </div>
+          <div id="assistant-log" class="assistant-log" aria-live="polite"></div>
+          <div class="assistant-controls">
+            <button type="button" id="voice-btn" class="ghost">Start voice</button>
+            <input
+              id="nl-input"
+              type="text"
+              placeholder="Try: Good night, arm security and optimize EV charging"
+            />
+            <button type="button" id="nl-send-btn" class="primary">Send</button>
+            <button type="button" id="tts-toggle" class="ghost">Voice on</button>
+          </div>
+        </article>
+      </section>
+
       <section class="workspace">
         <article class="panel plan-panel">
           <div class="panel-head">
