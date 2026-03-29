@@ -47,11 +47,16 @@ body {
   display: grid;
   justify-items: center;
   gap: 8px;
+  width: min(520px, 92vw);
+  border: 1px solid rgba(125, 211, 252, 0.34);
+  border-radius: 18px;
+  padding: 14px 12px;
+  background: rgba(8, 14, 24, 0.62);
 }
 
 .human-agent {
-  width: 220px;
-  height: 230px;
+  width: 260px;
+  height: 270px;
   position: relative;
   display: grid;
   place-items: center;
@@ -69,8 +74,8 @@ body {
 
 .agent-head {
   position: relative;
-  width: 95px;
-  height: 95px;
+  width: 112px;
+  height: 112px;
   border-radius: 999px;
   border: 1px solid rgba(125, 211, 252, 0.5);
   background: linear-gradient(180deg, rgba(26, 40, 63, 0.98), rgba(9, 16, 28, 0.98));
@@ -83,8 +88,8 @@ body {
 }
 
 .agent-eye {
-  width: 10px;
-  height: 10px;
+  width: 12px;
+  height: 12px;
   border-radius: 999px;
   background: #9be7ff;
   box-shadow: 0 0 12px rgba(125, 211, 252, 0.9);
@@ -101,9 +106,9 @@ body {
 
 .agent-body {
   position: absolute;
-  top: 98px;
-  width: 122px;
-  height: 90px;
+  top: 114px;
+  width: 142px;
+  height: 108px;
   border-radius: 15px;
   border: 1px solid rgba(125, 211, 252, 0.34);
   background: linear-gradient(180deg, rgba(17, 28, 45, 0.95), rgba(9, 15, 25, 0.98));
@@ -112,8 +117,8 @@ body {
 
 .agent-state {
   margin: 0;
-  color: #cce6ff;
-  font-size: 0.86rem;
+  color: #d6ecff;
+  font-size: 0.95rem;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
